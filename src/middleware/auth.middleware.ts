@@ -24,7 +24,7 @@ export const authMiddleware = (
     const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
     req.user = { id: decoded.id };
     next();
-  } catch (error) {
+  } catch {
     res.status(401).json({ message: 'Token is not valid' });
   }
 };

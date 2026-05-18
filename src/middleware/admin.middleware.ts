@@ -17,7 +17,7 @@ export const isAdminMiddleware = async (
     } else {
       res.status(403).json({ message: 'Access denied: Admins only' });
     }
-  } catch (error) {
+  } catch {
     res.status(500).json({ message: 'Server error' });
   }
 };
