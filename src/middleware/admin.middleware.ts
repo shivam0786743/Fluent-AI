@@ -1,5 +1,5 @@
 import { type Response, type NextFunction } from 'express';
-import User from '../models/user.model.js';
+import Admin from '../models/admin.model.js';
 import { type AuthRequest } from './auth.middleware.js';
 
 export const isAdminMiddleware = async (
@@ -11,12 +11,14 @@ export const isAdminMiddleware = async (
     if (!req.user) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
-    const user = await User.findById(req.user.id);
-    if (user && user.role === 'admin') {
-      next();
-    } else {
-      res.status(403).json({ message: 'Access denied: Admins only' });
+
+    // Check if user is an Admin record
+    const admin = await Admin.findById(req.user.id);
+    if (admin) {
+      return next();
     }
+
+    res.status(403).json({ message: 'Access denied: Admins only' });
   } catch {
     res.status(500).json({ message: 'Server error' });
   }

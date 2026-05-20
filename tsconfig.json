@@ -3,8 +3,7 @@
     "target": "ESNext",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "rootDir": "./src",
-    "outDir": "./dist",
+    "rootDir": "./",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
@@ -13,6 +12,6 @@
     "sourceMap": true,
     "declaration": true
   },
-  "include": ["src/**/*", "__tests__"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules"]
 }

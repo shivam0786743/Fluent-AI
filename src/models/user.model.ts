@@ -11,7 +11,6 @@ export interface IUser extends Document {
   notifications_enabled?: boolean;
   dark_mode?: boolean;
   is_premium?: boolean;
-  role?: 'user' | 'admin';
   streak_days?: number;
   avatar_url?: string;
   counrycode?: number;
@@ -63,11 +62,6 @@ const UserSchema: Schema = new Schema(
     is_premium: {
       type: Boolean,
       default: false,
-    },
-    role: {
-      type: String,
-      enum: ['user', 'admin'],
-      default: 'user',
     },
     streak_days: {
       type: Number,

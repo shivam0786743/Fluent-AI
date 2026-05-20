@@ -1,8 +1,9 @@
 import { Response, NextFunction } from 'express';
-import { isAdminMiddleware, type AuthRequest } from '../../src/middleware/admin.middleware';
-import User from '../../src/models/user.model';
+import { isAdminMiddleware } from '../../src/middleware/admin.middleware';
+import { type AuthRequest } from '../../src/middleware/auth.middleware';
+import Admin from '../../src/models/admin.model';
 
-jest.mock('../../src/models/user.model');
+jest.mock('../../src/models/admin.model');
 
 describe('isAdminMiddleware', () => {
   let mockReq: Partial<AuthRequest>;
@@ -18,6 +19,7 @@ describe('isAdminMiddleware', () => {
       json: jest.fn().mockReturnThis(),
     };
     mockNext = jest.fn();
+    jest.clearAllMocks();
   });
 
   it('should return 401 if user is not authenticated', async () => {
@@ -36,9 +38,9 @@ describe('isAdminMiddleware', () => {
     expect(mockNext).not.toHaveBeenCalled();
   });
 
-  it('should call next if user is admin', async () => {
-    (User.findById as jest.Mock).mockResolvedValue({
-      role: 'admin',
+  it('should call next if req.user.id corresponds to a record in Admin model', async () => {
+    (Admin.findById as jest.Mock).mockResolvedValue({
+      email: 'admin@example.com',
     });
 
     await isAdminMiddleware(
@@ -47,15 +49,13 @@ describe('isAdminMiddleware', () => {
       mockNext
     );
 
-    expect(User.findById).toHaveBeenCalledWith('user123');
+    expect(Admin.findById).toHaveBeenCalledWith('user123');
     expect(mockNext).toHaveBeenCalled();
     expect(mockRes.status).not.toHaveBeenCalled();
   });
 
-  it('should return 403 if user is not admin', async () => {
-    (User.findById as jest.Mock).mockResolvedValue({
-      role: 'user',
-    });
+  it('should return 403 if user is not found in Admin model', async () => {
+    (Admin.findById as jest.Mock).mockResolvedValue(null);
 
     await isAdminMiddleware(
       mockReq as AuthRequest,
@@ -70,21 +70,8 @@ describe('isAdminMiddleware', () => {
     expect(mockNext).not.toHaveBeenCalled();
   });
 
-  it('should return 403 if user not found', async () => {
-    (User.findById as jest.Mock).mockResolvedValue(null);
-
-    await isAdminMiddleware(
-      mockReq as AuthRequest,
-      mockRes as Response,
-      mockNext
-    );
-
-    expect(mockRes.status).toHaveBeenCalledWith(403);
-    expect(mockNext).not.toHaveBeenCalled();
-  });
-
   it('should return 500 on server error', async () => {
-    (User.findById as jest.Mock).mockRejectedValue(
+    (Admin.findById as jest.Mock).mockRejectedValue(
       new Error('Database error')
     );
 

@@ -15,7 +15,6 @@ describe('User Model', () => {
       expect(user.phoneNumber).toBe('1234567890');
       expect(user.email).toBe('test@example.com');
       expect(user.level).toBe('beginner');
-      expect(user.role).toBe('user');
       expect(user.is_premium).toBe(false);
       expect(user.notifications_enabled).toBe(true);
       expect(user.dark_mode).toBe(false);
@@ -96,7 +95,6 @@ describe('User Model', () => {
       });
 
       expect(user.level).toBe('beginner');
-      expect(user.role).toBe('user');
       expect(user.is_premium).toBe(false);
       expect(user.notifications_enabled).toBe(true);
       expect(user.dark_mode).toBe(false);
@@ -111,20 +109,12 @@ describe('User Model', () => {
         phoneNumber: '1234567890',
         password: 'testPassword123',
         level: 'invalid_level',
-      };
+      } as any;
 
       await expect(User.create(userData)).rejects.toThrow();
     });
 
-    it('should validate role enum', async () => {
-      const userData = {
-        phoneNumber: '1234567890',
-        password: 'testPassword123',
-        role: 'superuser',
-      };
 
-      await expect(User.create(userData)).rejects.toThrow();
-    });
   });
 
   describe('User Updates', () => {
@@ -150,9 +140,9 @@ describe('User Model', () => {
         { new: true }
       );
 
-      expect(updated.native_language).toBe('English');
-      expect(updated.daily_goal_minutes).toBe(30);
-      expect(updated.dark_mode).toBe(true);
+      expect(updated!.native_language).toBe('English');
+      expect(updated!.daily_goal_minutes).toBe(30);
+      expect(updated!.dark_mode).toBe(true);
     });
 
     it('should not modify password when updating other fields', async () => {
@@ -169,7 +159,7 @@ describe('User Model', () => {
       );
 
       const updatedUser = await User.findById(user._id);
-      expect(updatedUser.password).toBe(originalPassword);
+      expect(updatedUser!.password).toBe(originalPassword);
     });
   });
 });

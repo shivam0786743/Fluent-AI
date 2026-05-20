@@ -5,6 +5,8 @@ import cors from 'cors';
 import userRoutes from './routes/user.routes.js';
 import topicRoutes from './routes/topic.routes.js';
 import sessionRoutes from './routes/session.routes.js';
+import adminRoutes from './routes/admin.routes.js';
+import progressRoutes from './routes/progress.routes.js';
 
 dotenv.config();
 
@@ -21,6 +23,8 @@ app.use(express.json());
 app.use('/api/user', userRoutes);
 app.use('/api/topics', topicRoutes);
 app.use('/api/sessions', sessionRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/progress', progressRoutes);
 app.get('/', (req: Request, res: Response) => {
   res.send('Fluent-Ai Server is running!');
 });
