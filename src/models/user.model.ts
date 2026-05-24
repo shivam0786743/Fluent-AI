@@ -15,6 +15,7 @@ export interface IUser extends Document {
   avatar_url?: string;
   counrycode?: number;
   subscritionId?: string;
+  selected_languages?: string[];
   createdAt: Date;
   updatedAt: Date;
   comparePassword(password: string): Promise<boolean>;
@@ -75,6 +76,10 @@ const UserSchema: Schema = new Schema(
     },
     subscritionId: {
       type: String,
+    },
+    selected_languages: {
+      type: [String],
+      default: [],
     },
   },
   {

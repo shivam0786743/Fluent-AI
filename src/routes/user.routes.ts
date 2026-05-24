@@ -18,5 +18,6 @@ router.get('/profile', authMiddleware, userController.getProfile);
 router.put('/profile', authMiddleware, userController.updateProfile);
 router.put('/level', authMiddleware, userController.updateLevel);
 router.put('/avatar', authMiddleware, userController.updateAvatar);
+router.post('/languages', authMiddleware, userController.addSelectedLanguage);
 
 export default router;

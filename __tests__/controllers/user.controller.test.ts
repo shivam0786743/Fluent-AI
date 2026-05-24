@@ -278,4 +278,110 @@ describe('User Controller', () => {
       expect(mockRes.status).toHaveBeenCalledWith(400);
     });
   });
+
+  describe('addSelectedLanguage', () => {
+    let testUser: any;
+
+    beforeEach(async () => {
+      testUser = await User.create({
+        phoneNumber: '1234567890',
+        password: 'testPassword123',
+      });
+    });
+
+    it('should add a language to selected_languages successfully', async () => {
+      const mockReq = {
+        user: { id: testUser._id.toString() },
+        body: {
+          language: 'English',
+        },
+      } as unknown as AuthRequest;
+
+      await userController.addSelectedLanguage(mockReq, mockRes as Response);
+
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      const callArg = (mockRes.json as jest.Mock).mock.calls[0][0];
+      expect(callArg.selected_languages).toContain('English');
+    });
+
+    it('should add multiple languages sequentially without duplicates', async () => {
+      // Add English first
+      const mockReq1 = {
+        user: { id: testUser._id.toString() },
+        body: {
+          language: 'English',
+        },
+      } as unknown as AuthRequest;
+
+      await userController.addSelectedLanguage(mockReq1, mockRes as Response);
+      
+      let callArg = (mockRes.json as jest.Mock).mock.calls[0][0];
+      expect(callArg.selected_languages).toEqual(['English']);
+
+      // Add Hindi next
+      const mockReq2 = {
+        user: { id: testUser._id.toString() },
+        body: {
+          language: 'Hindi',
+        },
+      } as unknown as AuthRequest;
+
+      mockRes.json = jest.fn().mockReturnThis(); // Reset mock json
+      await userController.addSelectedLanguage(mockReq2, mockRes as Response);
+      
+      callArg = (mockRes.json as jest.Mock).mock.calls[0][0];
+      expect(callArg.selected_languages).toEqual(['English', 'Hindi']);
+
+      // Try adding English again (should not duplicate)
+      const mockReq3 = {
+        user: { id: testUser._id.toString() },
+        body: {
+          language: 'English',
+        },
+      } as unknown as AuthRequest;
+
+      mockRes.json = jest.fn().mockReturnThis(); // Reset mock json
+      await userController.addSelectedLanguage(mockReq3, mockRes as Response);
+      
+      callArg = (mockRes.json as jest.Mock).mock.calls[0][0];
+      expect(callArg.selected_languages).toEqual(['English', 'Hindi']);
+    });
+
+    it('should return 400 if language is not provided or not a string', async () => {
+      const mockReq = {
+        user: { id: testUser._id.toString() },
+        body: {},
+      } as unknown as AuthRequest;
+
+      await userController.addSelectedLanguage(mockReq, mockRes as Response);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+    });
+
+    it('should return 400 if language is empty string', async () => {
+      const mockReq = {
+        user: { id: testUser._id.toString() },
+        body: {
+          language: '   ',
+        },
+      } as unknown as AuthRequest;
+
+      await userController.addSelectedLanguage(mockReq, mockRes as Response);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+    });
+
+    it('should return 404 if user not found', async () => {
+      const mockReq = {
+        user: { id: '507f1f77bcf86cd799439011' },
+        body: {
+          language: 'Spanish',
+        },
+      } as unknown as AuthRequest;
+
+      await userController.addSelectedLanguage(mockReq, mockRes as Response);
+
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+    });
+  });
 });

@@ -153,3 +153,33 @@ export const updateAvatar = async (req: AuthRequest, res: Response) => {
     res.status(400).json({ error: error.message });
   }
 };
+
+export const addSelectedLanguage = async (req: AuthRequest, res: Response) => {
+  try {
+    const { language } = req.body;
+    if (!language || typeof language !== 'string') {
+      return res
+        .status(400)
+        .json({ message: 'Language is required and must be a string' });
+    }
+
+    const trimmedLanguage = language.trim();
+    if (trimmedLanguage === '') {
+      return res.status(400).json({ message: 'Language cannot be empty' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user?.id,
+      { $addToSet: { selected_languages: trimmedLanguage } },
+      { returnDocument: 'after' }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json(user);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+};
