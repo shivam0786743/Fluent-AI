@@ -7,6 +7,7 @@ import topicRoutes from './routes/topic.routes.js';
 import sessionRoutes from './routes/session.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import progressRoutes from './routes/progress.routes.js';
+import audioRoutes from './routes/audio.routes.js';
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.use('/api/topics', topicRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/progress', progressRoutes);
+app.use('/api/audio', audioRoutes);
 app.get('/', (req: Request, res: Response) => {
   res.send('Fluent-Ai Server is running!');
 });
