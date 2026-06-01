@@ -75,10 +75,10 @@ describe('User Controller', () => {
             jwt.sign.mockReturnValue('fake_token');
             await userController.login(mockReq, mockRes);
             expect(mockRes.status).toHaveBeenCalledWith(200);
-            expect(mockRes.json).toHaveBeenCalledWith({
+            expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({
                 message: 'Login successful',
                 token: 'fake_token',
-            });
+            }));
         });
         it('should return 401 if user not found', async () => {
             const mockReq = {

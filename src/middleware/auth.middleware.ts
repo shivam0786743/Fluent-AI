@@ -1,5 +1,6 @@
 import { type Request, type Response, type NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import TokenBlacklist from '../models/tokenBlacklist.model.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
@@ -9,7 +10,7 @@ export interface AuthRequest extends Request {
   };
 }
 
-export const authMiddleware = (
+export const authMiddleware = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
@@ -21,6 +22,12 @@ export const authMiddleware = (
   }
 
   try {
+    // Check blacklist
+    const blacklisted = await TokenBlacklist.findOne({ token });
+    if (blacklisted) {
+      return res.status(401).json({ message: 'Token has been revoked' });
+    }
+
     const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
     req.user = { id: decoded.id };
     next();

@@ -1,6 +1,7 @@
 import { type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
+import TokenBlacklist from '../models/tokenBlacklist.model.js';
 import { type AuthRequest } from '../middleware/auth.middleware.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
@@ -41,9 +42,14 @@ export const login = async (req: Request, res: Response) => {
     }
 
     // Generate JWT
-    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1d' });
+    const accessToken = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1d' });
+    const refreshToken = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
 
-    res.status(200).json({ message: 'Login successful', token });
+    res.status(200).json({
+      message: 'Login successful',
+      token: accessToken,
+      refresh_token: refreshToken,
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -181,5 +187,26 @@ export const addSelectedLanguage = async (req: AuthRequest, res: Response) => {
     res.status(200).json(user);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
+  }
+};
+
+export const logout = async (req: AuthRequest, res: Response) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(400).json({ message: 'Token is required' });
+    }
+
+    // Decode to get expiry time, fall back to 1 day if missing
+    const decoded = jwt.decode(token) as { exp?: number } | null;
+    const expiresAt = decoded?.exp
+      ? new Date(decoded.exp * 1000)
+      : new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await TokenBlacklist.create({ token, expiresAt });
+
+    res.status(200).json({ message: 'Logout successful' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 };

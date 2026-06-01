@@ -95,10 +95,12 @@ describe('User Controller', () => {
       await userController.login(mockReq, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(200);
-      expect(mockRes.json).toHaveBeenCalledWith({
-        message: 'Login successful',
-        token: 'fake_token',
-      });
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Login successful',
+          token: 'fake_token',
+        })
+      );
     });
 
     it('should return 401 if user not found', async () => {

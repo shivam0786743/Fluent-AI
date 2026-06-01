@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import userRoutes from './routes/user.routes.js';
+import authRoutes from './routes/auth.routes.js';
 import topicRoutes from './routes/topic.routes.js';
 import sessionRoutes from './routes/session.routes.js';
 import adminRoutes from './routes/admin.routes.js';
@@ -22,6 +23,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/user', userRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/topics', topicRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/admin', adminRoutes);
