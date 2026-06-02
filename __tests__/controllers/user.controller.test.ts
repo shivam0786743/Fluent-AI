@@ -6,6 +6,10 @@ import User from '../../src/models/user.model';
 import { AuthRequest } from '../../src/middleware/auth.middleware';
 
 jest.mock('jsonwebtoken');
+jest.mock('../../src/utils/otp.js', () => ({
+  sendOtpToPhone: jest.fn().mockResolvedValue('mock_verification_id'),
+  verifyOtpCode: jest.fn().mockResolvedValue({ isValid: true, mobileNumber: '1234567890' }),
+}));
 
 describe('User Controller', () => {
   let mockRes: Partial<Response>;
@@ -30,7 +34,8 @@ describe('User Controller', () => {
 
       expect(mockRes.status).toHaveBeenCalledWith(201);
       expect(mockRes.json).toHaveBeenCalledWith({
-        message: 'User signed up successfully',
+        message: 'User signed up successfully. OTP sent.',
+        verificationId: 'mock_verification_id',
       });
 
       const user = await User.findOne({ phoneNumber: '1234567890' });

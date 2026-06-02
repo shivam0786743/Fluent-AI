@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
 import TokenBlacklist from '../models/tokenBlacklist.model.js';
 import { type AuthRequest } from '../middleware/auth.middleware.js';
+import { sendOtpToPhone, verifyOtpCode } from '../utils/otp.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
@@ -16,12 +17,59 @@ export const signup = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'User already exists' });
     }
 
+    const verificationId = await sendOtpToPhone(phoneNumber);
+
     const user = new User({ phoneNumber, password });
     await user.save();
 
-    res.status(201).json({ message: 'User signed up successfully' });
+    res.status(201).json({ 
+      message: 'User signed up successfully. OTP sent.',
+      verificationId
+    });
   } catch (error: any) {
     res.status(400).json({ error: error.message });
+  }
+};
+
+export const verifyOtp = async (req: Request, res: Response) => {
+  try {
+    const { verificationId, otp, phoneNumber } = req.body;
+
+    if (!verificationId || !otp) {
+      return res.status(400).json({ message: 'Verification ID and OTP are required' });
+    }
+
+    const { isValid, mobileNumber } = await verifyOtpCode(verificationId, otp);
+    
+    if (!isValid) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+
+    const phone = mobileNumber || phoneNumber;
+    if (!phone) {
+       return res.status(400).json({ message: 'Phone number is required' });
+    }
+
+    let user = await User.findOne({ phoneNumber: phone });
+    if (!user) {
+      user = await User.findOne({ phoneNumber: { $regex: new RegExp(phone + '$') } });
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Generate JWT
+    const accessToken = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1d' });
+    const refreshToken = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.status(200).json({
+      message: 'Login successful',
+      token: accessToken,
+      refresh_token: refreshToken,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 };
 
