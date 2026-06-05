@@ -162,4 +162,21 @@ describe('User Model', () => {
       expect(updatedUser!.password).toBe(originalPassword);
     });
   });
+
+  describe('Auto-increment Unique userId', () => {
+    it('should assign a sequential unique userId to new users', async () => {
+      const user1 = await User.create({
+        phoneNumber: '0000000001',
+        password: 'password123',
+      });
+      const user2 = await User.create({
+        phoneNumber: '0000000002',
+        password: 'password123',
+      });
+
+      expect(user1.userId).toBeDefined();
+      expect(user2.userId).toBeDefined();
+      expect(user2.userId! - user1.userId!).toBe(1);
+    });
+  });
 });

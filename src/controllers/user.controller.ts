@@ -1,6 +1,7 @@
 import { type Request, type Response } from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
+import Session from '../models/session.model.js';
 import TokenBlacklist from '../models/tokenBlacklist.model.js';
 import { type AuthRequest } from '../middleware/auth.middleware.js';
 import { sendOtpToPhone, verifyOtpCode } from '../utils/otp.js';
@@ -8,21 +9,44 @@ import { sendOtpToPhone, verifyOtpCode } from '../utils/otp.js';
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
 export const signup = async (req: Request, res: Response) => {
+  const { phoneNumber } = req.body;
+
+  if (!phoneNumber || !/^\d{10}$/.test(phoneNumber)) {
+    return res.status(400).json({
+      success: false,
+      message: "Phone number must be exactly 10 digits",
+    });
+  }
   try {
-    const { phoneNumber, password } = req.body;
+    const { phoneNumber, password, firstName, lastName, countryCode } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ phoneNumber });
     if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
+      if (existingUser.isVerified) {
+        return res.status(400).json({ message: 'User already exists' });
+      }
+
+      const verificationId = await sendOtpToPhone(phoneNumber);
+
+      existingUser.password = password;
+      if (firstName) existingUser.firstName = firstName;
+      if (lastName) existingUser.lastName = lastName;
+      if (countryCode) existingUser.countryCode = countryCode;
+      await existingUser.save();
+
+      return res.status(200).json({
+        message: 'User already exists',
+        verificationId
+      });
     }
 
     const verificationId = await sendOtpToPhone(phoneNumber);
 
-    const user = new User({ phoneNumber, password });
+    const user = new User({ phoneNumber, password, firstName, lastName, countryCode });
     await user.save();
 
-    res.status(201).json({ 
+    res.status(201).json({
       message: 'User signed up successfully. OTP sent.',
       verificationId
     });
@@ -40,14 +64,14 @@ export const verifyOtp = async (req: Request, res: Response) => {
     }
 
     const { isValid, mobileNumber } = await verifyOtpCode(verificationId, otp);
-    
+
     if (!isValid) {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
     const phone = mobileNumber || phoneNumber;
     if (!phone) {
-       return res.status(400).json({ message: 'Phone number is required' });
+      return res.status(400).json({ message: 'Phone number is required' });
     }
 
     let user = await User.findOne({ phoneNumber: phone });
@@ -57,6 +81,11 @@ export const verifyOtp = async (req: Request, res: Response) => {
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (!user.isVerified) {
+      user.isVerified = true;
+      await user.save();
     }
 
     // Generate JWT
@@ -83,6 +112,10 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    if (!user.isVerified) {
+      return res.status(403).json({ message: 'Please verify your OTP to login' });
+    }
+
     // Check password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
@@ -93,10 +126,14 @@ export const login = async (req: Request, res: Response) => {
     const accessToken = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1d' });
     const refreshToken = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
 
+    // Fetch user profile without password
+    const userProfile = await User.findById(user._id).select('-password');
+
     res.status(200).json({
       message: 'Login successful',
       token: accessToken,
       refresh_token: refreshToken,
+      user: userProfile,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -127,6 +164,9 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
 export const updateProfile = async (req: AuthRequest, res: Response) => {
   try {
     const {
+      firstName,
+      lastName,
+      countryCode,
       native_language,
       daily_goal_minutes,
       notifications_enabled,
@@ -136,6 +176,9 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
       req.user?.id,
       {
         $set: {
+          firstName,
+          lastName,
+          countryCode,
           native_language,
           daily_goal_minutes,
           notifications_enabled,
@@ -258,3 +301,175 @@ export const logout = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const resendOtp = async (req: Request, res: Response) => {
+  try {
+    const { phoneNumber } = req.body;
+    if (!phoneNumber) {
+      return res.status(400).json({ message: 'Phone number is required' });
+    }
+
+    const user = await User.findOne({ phoneNumber });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const verificationId = await sendOtpToPhone(phoneNumber);
+
+    res.status(200).json({
+      message: 'OTP resent successfully',
+      verificationId,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const forgotPassword = async (req: Request, res: Response) => {
+  try {
+    const { phoneNumber } = req.body;
+    if (!phoneNumber) {
+      return res.status(400).json({ message: 'Phone number is required' });
+    }
+
+    const user = await User.findOne({ phoneNumber });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const verificationId = await sendOtpToPhone(phoneNumber);
+
+    res.status(200).json({
+      message: 'OTP sent successfully. Please verify to reset password.',
+      verificationId,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const verifyResetOtp = async (req: Request, res: Response) => {
+  try {
+    const { verificationId, otp, phoneNumber } = req.body;
+
+    if (!verificationId || !otp || !phoneNumber) {
+      return res.status(400).json({ message: 'Verification ID, OTP, and phone number are required' });
+    }
+
+    const { isValid, mobileNumber } = await verifyOtpCode(verificationId, otp);
+
+    if (!isValid) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+
+    const phone = mobileNumber || phoneNumber;
+    let user = await User.findOne({ phoneNumber: phone });
+    if (!user) {
+      user = await User.findOne({ phoneNumber: { $regex: new RegExp(phone + '$') } });
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Generate a secure short-lived reset token
+    const resetToken = jwt.sign(
+      { id: user._id, type: 'reset' },
+      JWT_SECRET,
+      { expiresIn: '15m' }
+    );
+
+    res.status(200).json({
+      message: 'OTP verified successfully',
+      resetToken,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const { resetToken, newPassword } = req.body;
+
+    if (!resetToken || !newPassword) {
+      return res.status(400).json({ message: 'Reset token and new password are required' });
+    }
+
+    try {
+      const decoded = jwt.verify(resetToken, JWT_SECRET) as { id: string; type: string };
+      if (decoded.type !== 'reset') {
+        return res.status(400).json({ message: 'Invalid reset token type' });
+      }
+
+      const user = await User.findById(decoded.id);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      user.password = newPassword;
+      await user.save();
+
+      res.status(200).json({ message: 'Password reset successfully' });
+    } catch (err) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const changePassword = async (req: AuthRequest, res: Response) => {
+  try {
+    const { oldPassword, newPassword, confirmPassword } = req.body;
+
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        message: 'Old password, new password, and confirm new password are required',
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ message: 'New passwords do not match' });
+    }
+
+    const user = await User.findById(req.user?.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const isMatch = await user.comparePassword(oldPassword);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Incorrect old password' });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({ message: 'Password changed successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+export const deleteUser = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const user = await User.findByIdAndDelete(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Cascade delete any related sessions/progress
+    await Session.deleteMany({ user_id: userId });
+
+    res.status(200).json({ message: 'User and all related data deleted successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+

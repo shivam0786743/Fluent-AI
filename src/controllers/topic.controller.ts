@@ -27,29 +27,28 @@ export const getTopicsGroupedByCategory = async (
   res: Response
 ) => {
   try {
+    const { category, search } = (req.query || {}) as { category?: string; search?: string };
+    const filter: any = {};
+    if (category) filter.category = category;
+    if (search) filter.title = { $regex: search, $options: 'i' };
+
+    if (Object.keys(filter).length > 0) {
+      const topics = await Topic.find(filter).select('-__v');
+      return res.json({ data: topics });
+    }
+
+    // No filters: return topics grouped by category
     const topics = await Topic.aggregate([
-      {
-        $group: {
-          _id: '$category',
-          topics: { $push: '$$ROOT' },
-        },
-      },
-      {
-        $project: {
-          category: '$_id',
-          topics: 1,
-          _id: 0,
-        },
-      },
-      {
-        $sort: { category: 1 },
-      },
+      { $group: { _id: '$category', topics: { $push: '$$ROOT' } } },
+      { $project: { category: '$_id', topics: 1, _id: 0 } },
+      { $sort: { category: 1 } },
     ]);
     res.json({ data: topics });
   } catch (error: any) {
     res.status(500).json({ message: 'Server Error', error: error.message });
   }
 };
+
 
 // GET /api/topics/recommended
 export const getRecommendedTopic = async (req: AuthRequest, res: Response) => {

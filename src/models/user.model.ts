@@ -1,9 +1,15 @@
 import mongoose, { Schema, type Document } from 'mongoose';
 import bcrypt from 'bcryptjs';
+import Counter from './counter.model.js';
 
 export interface IUser extends Document {
+  userId?: number;
   phoneNumber: string;
   password: string;
+  isVerified: boolean;
+  firstName?: string;
+  lastName?: string;
+  countryCode?: string;
   email?: string;
   level?: 'beginner' | 'intermediate' | 'advanced';
   native_language?: string;
@@ -23,6 +29,10 @@ export interface IUser extends Document {
 
 const UserSchema: Schema = new Schema(
   {
+    userId: {
+      type: Number,
+      unique: true,
+    },
     phoneNumber: {
       type: String,
       required: true,
@@ -32,6 +42,15 @@ const UserSchema: Schema = new Schema(
     password: {
       type: String,
       required: true,
+    },
+    firstName: {
+      type: String,
+    },
+    lastName: {
+      type: String,
+    },
+    countryCode: {
+      type: String,
     },
     email: {
       type: String,
@@ -81,17 +100,31 @@ const UserSchema: Schema = new Schema(
       type: [String],
       default: [],
     },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
   }
 );
 
-// Hash password before saving
+// Auto-increment userId and Hash password before saving
 UserSchema.pre<IUser>('save', async function () {
-  if (!this.isModified('password')) return;
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+  if (this.isNew && !this.userId) {
+    const counter = await Counter.findOneAndUpdate(
+      { modelName: 'User' },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    );
+    this.userId = counter.seq;
+  }
+
+  if (this.isModified('password')) {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+  }
 });
 
 // Method to compare password
