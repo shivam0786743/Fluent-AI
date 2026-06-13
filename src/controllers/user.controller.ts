@@ -461,7 +461,9 @@ export const deleteUser = async (req: AuthRequest, res: Response) => {
 
     const user = await User.findByIdAndDelete(userId);
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json(
+        { message: 'User not found' }
+      );
     }
 
     // Cascade delete any related sessions/progress
