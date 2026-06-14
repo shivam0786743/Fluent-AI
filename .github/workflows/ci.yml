@@ -18,9 +18,4 @@ jobs:
           find . -name "*.yaml" -o -name "*.yml" | head -20
           echo "All YAML files found successfully"
 
-      - name: Check project structure
-        run: |
-          echo "Crossplane folder:" && ls crossplane/
-          echo "Policies folder:" && ls policies/
-          echo "ArgoCD folder:" && ls argocd/
-          echo "Project structure validated!"
+      
